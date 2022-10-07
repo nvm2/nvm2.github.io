@@ -271,7 +271,8 @@ function limitAngle(body0, body1, n, a, b, minAngle, maxAngle, compliance, dt, m
 const JointType = {
     SPHERICAL: "spherical",
     HINGE: "hinge",
-    FIXED: "fixed"
+    FIXED: "fixed",
+	PRISMATIC: "prismatic"
 }
 
 class Joint {
@@ -296,6 +297,8 @@ class Joint {
         this.minTwistAngle = -2.0 * Math.PI;
         this.maxTwistAngle = 2.0 * Math.PI;
         this.twistLimitCompliance = 0.0;
+		this.prismaticMin = 0.0;
+		this.prismaticMax = 0.0;
     }
 
     updateGlobalPoses() {
@@ -313,13 +316,13 @@ class Joint {
 
         // orientation
 
-        if (this.type == JointType.FIXED) {
+        if (this.type == JointType.FIXED || this.type == JointType.PRISMATIC) {
             let q = this.globalPose0.q;
             q.conjugate();
             q.multiplyQuaternions(this.globalPose1.q, q);
             let omega = new THREE.Vector3();
             omega.set(2.0 * q.x, 2.0 * q.y, 2.0 * q.z);
-            if (omega.w < 0.0)
+            if (q.w < 0.0)
                 omega.multiplyScalar(-1.0);
             applyBodyPairCorrection(this.body0, this.body1, omega, this.compliance, dt);						
         }
@@ -388,6 +391,16 @@ class Joint {
         this.updateGlobalPoses();
         let corr = new THREE.Vector3();
         corr.subVectors(this.globalPose1.p, this.globalPose0.p);
+		
+		if(this.type == JointType.PRISMATIC) {
+			// exclude changes along body1's y axis
+			let a1 = getQuatAxis1(this.globalPose1.q);
+			let f = corr.dot(a1);
+			f = Math.max(Math.min(f, this.prismaticMax), this.prismaticMin);
+			a1.multiplyScalar(f);
+			corr.sub(a1);
+		}
+		
         applyBodyPairCorrection(this.body0, this.body1, corr, this.compliance, dt,
             this.globalPose0.p, this.globalPose1.p);	
     }
