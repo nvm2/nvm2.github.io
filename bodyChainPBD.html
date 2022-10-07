@@ -59,13 +59,19 @@
 	
 	<body>
 
-        <h1>Prismatic joint issue</h1>
-        <br> <br>    
-		<p>Prismatic joint is implemented by removing correction along local axis of body1 (converted to world space). 
-		Drag it a little to see it "explode", setting lower limit or extreme damping makes it stable.</p>
+        <h1>Chain of 100 Bodies</h1> Matthias M&uuml;ller, Nvidia
+        <br> <br>       
+        The challenge is to simulate a chain of 99 small boxes and one 100x the weight at the bottom.<br><br>
+        These are the specs:
+        <ul>
+            <li>Small boxes: 2cm x 4cm x 2cm, big box: 20cm x 4cm x 20cm</li>
+            <li>Gravity = -10 m/s^2</li>
+            <li>Joints attached alternating to opposite corners</li>
+            <li>Time step = 1/60s</li>
+        </ul>
+
+        Grab the boxes if you can. Hit [F5] to restart. <br> <br>
           
-		<p>damping: <input type = "range" min = "0" max = "5" value = "0" id = "dampingSlider" class = "slider"> <span id = "damping">0.0</span></p>
-		<p>limit: <input type = "range" min = "0" max = "5" value = "2" id = "limitSlider" class = "slider"> <span id = "limit">2.0</span></p>
         <div id="container"></div>
         
         <a href = "https://github.com/matthias-research/pages/blob/master/challenges/PBD.js" class ="button" target = "_blank">PBD.js</a>        
@@ -76,25 +82,6 @@
 		<script src="PBD.js"></script>
 
 		<script type="module">
-
-			// gui			
-			document.getElementById("dampingSlider").oninput = function() {
-				var coeffs = ["0.0", "10.0", "100.0", "1000.0", "2000.0", "4000.0"];
-				var coeff = coeffs[Number(this.value)];
-				for(let j of joints)
-					j.posDamping = j.rotDamping = Number(coeff);		
-				document.getElementById("damping").innerHTML = coeff;
-			}
-			
-			document.getElementById("limitSlider").oninput = function() {
-				var coeffs = ["0.5", "1.0", "2.0", "3.0", "10.0", "100.0"];
-				var coeff = coeffs[Number(this.value)];
-				for(let j of joints) {
-					j.prismaticMax = Number(coeff) * objectsSize.x;
-					j.prismaticMin = -j.prismaticMax;
-				}
-				document.getElementById("limit").innerHTML = coeff;
-			}
 			
 			// physics scene
 
@@ -102,15 +89,12 @@
 			var numSubsteps = 40;
 			var timeStep = 1.0 / 60.0;
 
-			var numObjects = 2;
-			var objectsSize = new THREE.Vector3(0.12, 0.04, 0.02);
-			var lastObjectsSize = new THREE.Vector3(0.12, 0.04, 0.2);
+			var numObjects = 100;
+			var objectsSize = new THREE.Vector3(0.02, 0.04, 0.02);
+			var lastObjectsSize = new THREE.Vector3(0.2, 0.04, 0.2);
 
-			var rotDamping = 0.0;
-            var posDamping = 0.0;
-			
-			var prismaticMin = -objectsSize.x*2;
-			var prismaticMax = objectsSize.x*2;
+			var rotDamping = 1000.0;
+            var posDamping = 1000.0;
 
 			var bodies = [];
 			var joints = [];
@@ -134,8 +118,8 @@
 
 			var mousePos = new THREE.Vector2();
 			var mouseDown = false;
-			var cameraLookAt = new THREE.Vector3(0.0, 0.4, 0.0);
-			var camPosition = new THREE.Vector3(0.0, 0.45, 0.1);
+			var cameraLookAt = new THREE.Vector3(0.0, 3.0, 0.0);
+			var camPosition = new THREE.Vector3(0.0, 3.0, 4.0);
 			var cameraDirX = new THREE.Vector3(0.0, 0.0, 0.0);
 			var cameraDirY = new THREE.Vector3(0.0, 0.0, 0.0);
 			var cameraDirZ = new THREE.Vector3(0.0, 0.0, 0.0);
@@ -244,8 +228,7 @@
 								
 				for (let i = 0; i < numObjects; i++) {                
 
-					//let size = i < numObjects - 1 ? objectsSize : lastObjectsSize;
-					let size = objectsSize;
+					let size = i < numObjects - 1 ? objectsSize : lastObjectsSize;
 
 					// graphics
 
@@ -275,13 +258,9 @@
 						jointPose1.p.add(pose.p);
 					}
 
-					//let joint = new PBD.Joint(PBD.JointType.PRISMATIC, boxBody, lastBody, jointPose0, jointPose1);
-					let joint = new PBD.Joint(lastBody ? PBD.JointType.PRISMATIC : PBD.JointType.FIXED, boxBody, lastBody, jointPose0, jointPose1);
-					//let joint = new PBD.Joint(PBD.JointType.SPHERICAL, boxBody, lastBody, jointPose0, jointPose1);
+					let joint = new PBD.Joint(PBD.JointType.SPHERICAL, boxBody, lastBody, jointPose0, jointPose1);
 					joint.rotDamping = rotDamping;
                     joint.posDamping = posDamping;
-					joint.prismaticMin = prismaticMin;
-					joint.prismaticMax = prismaticMax;
                     joints.push(joint);
 					
 					lastBody = boxBody;
